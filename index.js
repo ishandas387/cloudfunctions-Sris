@@ -69,6 +69,36 @@ exports.adminnft = functions.database.ref('/Orders/{orderId}').onWrite( event =>
     
     return admin.messaging().sendToTopic("adminnft", payload, options);
 });
+exports.adminnftforcancel = functions.database.ref('/Orders/{status}').onUpdate( event => {
+
+    console.log('Push notification event triggered to admin');
+
+    //  Grab the current value of what was written to the Realtime Database.
+    var valueObject = event.data.val();
+    if(valueObject.status ==4)
+    {
+        const payload = {
+            notification: {
+                title:"Order "+valueObject.orderId,
+                body: "Order has been Cancelled by "+valueObject.userName,
+                type:"order"
+            },
+        };
+    
+      //Create an options object that contains the time to live for the notification and the priority
+        const options = {
+            priority: "high",
+            timeToLive: 60 * 60 * 24
+        };
+    
+        
+        return admin.messaging().sendToTopic("adminnft", payload, options);
+    }
+
+   
+  // Create a notification
+    
+});
 
 
 
@@ -191,12 +221,27 @@ exports.mailnotification = functions.database.ref('/Orders/{status}').onUpdate(e
     {
         status ="Confirmed";
     }
+    if(valueObject.status ==0)
+    {
+        status ="Placed";
+    }
     else if (valueObject.status ==2)
     {
         status="Rejected";
     }
-    const msg ={
-            to: valueObject.email,
+    else if (valueObject.status ==4)
+    {
+        status="Cancelled";
+    }
+    var to = valueObject.email;
+    if(status == "Cancelled")
+    {
+            var to = "["+valueObject.email+",srisbeauty2989@gmail.com]"
+    }
+   
+    
+        const msg ={
+            to: to,
             from:'<no-reply>@apporders.srisbeauty.in',
             subject: '[Sri\'s Beauty App] Order '+valueObject.orderId+' '+status,
             templateId: 'aaf2e938-0c10-4a4a-9213-a7f1b9b0c0e1',
@@ -214,6 +259,8 @@ exports.mailnotification = functions.database.ref('/Orders/{status}').onUpdate(e
 
 
             }
+   
+    
     };
     return sgmail.send(msg).then(()=>{
         console.log('email sent via send grid for order status change');
@@ -268,6 +315,10 @@ exports.orerstatuschange = functions.database.ref('/Orders/{status}').onUpdate(e
     {
         status="Rejected";
     }
+    else if (valueObject.status ==4)
+    {
+        status="Cancelled";
+    }
     const payload = {
         notification: {
             title:"Order staus change",
@@ -278,7 +329,7 @@ exports.orerstatuschange = functions.database.ref('/Orders/{status}').onUpdate(e
 
     return admin.messaging().sendToDevice(valueObject.userToken, payload);
 
-    console.log('setting up email');
+   /* console.log('setting up email');
    
 
        const mailOptions = {
@@ -299,5 +350,5 @@ exports.orerstatuschange = functions.database.ref('/Orders/{status}').onUpdate(e
 
         // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@blurdybloop.com>
         // Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
-    });
+    });*/
 });
